@@ -1,0 +1,7 @@
+_target_: src.data.electricity_datamodule.ElectricityDataModule
+dataset_dir: ${paths.data_dir}/electricity
+batch_size: 64 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+num_workers: 0
+pin_memory: False
+use_single_env: True
+env: 1

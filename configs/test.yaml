@@ -1,0 +1,47 @@
+# @package _global_
+
+# 这是一个专门用于快速集成测试的配置文件
+
+defaults:
+  - _self_
+  - train  # 继承你的主训练配置 train.yaml
+  - override /data: electricity   # 明确指定数据集配置
+  - override /model: CauSTG       # 明确指定模型配置
+  # 你可以根据需要覆盖其他组件
+
+# ↓↓↓ 覆盖关键参数以进行快速测试 ↓↓↓
+
+seed: 42
+
+# 使用 fast_dev_run 模式，它会自动运行一个批次的训练和验证，并禁用日志和检查点
+trainer:
+  _target_: pytorch_lightning.Trainer
+  fast_dev_run: True
+  accelerator: cpu # 在 CPU 上进行测试，速度更快，无需 GPU
+
+# 让数据模块以 debug 模式运行，只加载一小部分数据
+data:
+  debug: True # 假设你的 DataModule 支持这个参数
+  batch_size: 4 # 测试时用小批量即可
+
+# 在测试期间禁用日志记录器，避免生成不必要的日志文件
+logger: null # 或者 false, 取决于你的实现
+
+# 禁用所有回调，或只保留必要的
+callbacks:
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: "val/loss"
+    mode: "min"
+    save_last: false # 测试时不需要保存
+    
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val/loss"
+    patience: 3
+    mode: "min"
+
+# 明确指示我们不从检查点恢复，并且要进行训练和测试
+train: True
+test: True
+ckpt_path: null

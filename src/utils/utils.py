@@ -42,20 +42,7 @@ def extras(cfg: DictConfig) -> None:
 
 def task_wrapper(task_func: Callable) -> Callable:
     """Optional decorator that controls the failure behavior when executing the task function.
-
-    This wrapper can be used to:
-        - make sure loggers are closed even if the task function raises an exception (prevents multirun failure)
-        - save the exception to a `.log` file
-        - mark the run as failed with a dedicated file in the `logs/` folder (so we can find and rerun it later)
-        - etc. (adjust depending on your needs)
-
-    Example:
-    ```
-    @utils.task_wrapper
-    def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        ...
-        return metric_dict, object_dict
-    ```
+        统一训练任务的异常处理和收尾逻辑，捕获并记录异常，打印输出日志、目录，确保wandb被关闭避免多并行实验崩溃
 
     :param task_func: The task function to be wrapped.
 
@@ -72,10 +59,14 @@ def task_wrapper(task_func: Callable) -> Callable:
             # save exception to `.log` file
             log.exception("")
 
-            # some hyperparameter combinations might be invalid or cause out-of-memory errors
-            # so when using hparam search plugins like Optuna, you might want to disable
-            # raising the below exception to avoid multirun failure
+            # 在超参数自动最优搜索实验中，但有些组合会 立刻崩溃：
+            # Batch size 太大 → CUDA OOM
+            # learning rate 特别极端 → loss NaN
+            # 模型太大 → 内存溢出
+            # 为了防止因为某个实验崩溃导致multirun进程中断，丢失其他实验数据。
+            # 调试时保留下一行，大规模实验时，注释下一行。
             raise ex
+            # metric_dict, object_dict = {}, {}
 
         # things to always do after either success or exception
         finally:

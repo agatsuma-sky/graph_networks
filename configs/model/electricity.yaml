@@ -1,0 +1,35 @@
+_target_: src.models.electricity_module.ELECTRICITYLitModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0001
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: true
+  mode: min
+  factor: 0.1
+  patience: 10
+
+net:
+  _target_: src.models.components.CauSTG.CauSTG
+  device: cuda
+  num_nodes: 321
+  dropout: 0.3
+  use_gcn: true
+  adaptive_adj: true
+  init_adj: null
+  in_dim: 2
+  out_dim: 1
+  residual_channels: 32
+  dilation_channels: 32
+  skip_channels: 256
+  end_channels: 512
+  kernel_size: 3
+  blocks: 1
+  layers: 3
+
+# compile model for faster training with pytorch 2.0
+compile: false

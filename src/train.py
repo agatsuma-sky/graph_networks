@@ -7,6 +7,15 @@ import torch
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
+import os
+import torch
+import functools
+# 打印当前进程的 PID 和 授权动作
+print(f"--- [PID: {os.getpid()}] 正在注册 Torch 安全白名单 ---")
+torch.serialization.add_safe_globals([functools.partial])
+# FIXED：显式授权 PyTorch 加载它自己的 Adam 优化器
+torch.serialization.add_safe_globals([torch.optim.Adam])
+torch.serialization.add_safe_globals([torch.optim.lr_scheduler.ReduceLROnPlateau])
 
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 # ------------------------------------------------------------------------------------ #
@@ -41,31 +50,32 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 @task_wrapper
 def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """Trains the model. Can additionally evaluate on a testset, using best weights obtained during
-    training.
-
-    This method is wrapped in optional @task_wrapper decorator, that controls the behavior during
-    failure. Useful for multiruns, saving info about the crash, etc.
+    """训练模型，装饰器用于保存多次运行的失败信息
 
     :param cfg: A DictConfig configuration composed by Hydra.
     :return: A tuple with metrics and dict with all instantiated objects.
     """
-    # set seed for random number generators in pytorch, numpy and python.random
+    # 设置随机种子，在pytorch, numpy and python.random
     if cfg.get("seed"):
         L.seed_everything(cfg.seed, workers=True)
 
+    # 用configs/data/electricity.yaml 实例化datamodule
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
 
+    # 用configs/model/CauSTG.yaml 实例化model
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
 
+    # 同理，实例化callbacks
     log.info("Instantiating callbacks...")
     callbacks: List[Callback] = instantiate_callbacks(cfg.get("callbacks"))
 
+    # 实例化日志
     log.info("Instantiating loggers...")
     logger: List[Logger] = instantiate_loggers(cfg.get("logger"))
 
+    # 实例化训练器
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
 
